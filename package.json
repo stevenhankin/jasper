@@ -7,7 +7,10 @@
   "engines": {
     "vscode": "^1.53.0"
   },
-  "repository": "https://github.com/stevenhankin/jasper",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stevenhankin/jasper.git"
+  },
   "icon": "images/bee.png",
   "categories": [
     "Other"
