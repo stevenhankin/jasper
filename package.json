@@ -3,6 +3,7 @@
   "displayName": "Jasper",
   "description": "",
   "version": "0.0.1",
+  "publisher": "SteveHankin",
   "engines": {
     "vscode": "^1.53.0"
   },
@@ -17,7 +18,7 @@
     "commands": [
       {
         "command": "jasper.start",
-        "title": "JSON Root Path"
+        "title": "Jasper"
       }
     ]
   },
