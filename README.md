@@ -6,7 +6,7 @@ This extension shows the path to the JSON attribute you are hovering over.
 
 Displays hover text path for JSON at the root level in modules (javascript) or in JSON files.
 
-![feature X](/images/jasper.gif)
+![Usage](https://raw.githubusercontent.com/stevenhankin/jasper/main/images/jasper.gif)
 
 ---
 
