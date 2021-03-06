@@ -2,7 +2,7 @@
   "name": "jasper",
   "displayName": "Jasper",
   "description": "",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "SteveHankin",
   "engines": {
     "vscode": "^1.53.0"
