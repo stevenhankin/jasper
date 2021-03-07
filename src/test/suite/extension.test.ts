@@ -6,7 +6,7 @@ import { Hover } from "vscode";
 import { expect } from "chai";
 
 type Sample = {
-  [key: string]: any;
+  [key: string]: { path: string; content: string; isJson: boolean };
 };
 
 const SAMPLES: Sample = {
@@ -26,6 +26,16 @@ const SAMPLES: Sample = {
         level3: {
           targetAttrib: "hoverOnThis",
         },
+      },
+    }),
+    isJson: true,
+  },
+  arrayExample: {
+    path: __dirname + "/sample3.json",
+    content: JSON.stringify({
+      sample: "hello",
+      level2: {
+        anArray: [{ thisCode: 0 }, { thatCode: 1 }, { anotherCode: 2 }],
       },
     }),
     isJson: true,
@@ -98,7 +108,6 @@ suite("Extension Test Suite", async () => {
           new vscode.Position(0, hoverOnPos),
           sample.isJson
         );
-
         try {
           if (isHover(hoverResult)) {
             vscode.Hover;
@@ -127,11 +136,19 @@ suite("Extension Test Suite", async () => {
   /**
    * Test on a nested object
    */
-  test("Test simple json", (done) => {
+  test("Test nested json", (done) => {
     testHelper(done, "threeLevels", "hoverOnThis", [
       "level2",
       "level3",
       "targetAttrib",
     ]);
+  });
+
+  /**
+   * Test on an array object
+   * to hover on the 3rd element
+   */
+  test("Test array json", (done) => {
+    testHelper(done, "arrayExample", "anotherCode", ["level2", "anArray[2]"]);
   });
 });

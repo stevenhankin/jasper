@@ -1,6 +1,14 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { File, Node, VariableDeclarator } from "@babel/types";
+import {
+  File,
+  isArrayExpression,
+  isObjectExpression,
+  isObjectProperty,
+  isStringLiteral,
+  Node,
+  VariableDeclarator,
+} from "@babel/types";
 import * as vscode from "vscode";
 import { parse } from "@babel/parser";
 
@@ -18,8 +26,19 @@ const getContainingNode = (doc: File, pos: number) =>
  * Descend the Abstract Syntax Tree
  * and add the object path at each level
  * to the string array (which is returned)
+ *
+ * @param node
+ * @param pos
+ * @param path
+ * @param parentAttr - Attribute name of parent
+ * @returns string array of JSON path to hover text
  */
-const descendNodes = (node: Node, pos: number, path: string[]): string[] => {
+const descendNodes = (
+  node: Node,
+  pos: number,
+  path: string[],
+  parentAttr: string
+): string[] => {
   console.log("descendNodes", node.type);
   ////
   if (node.type === "VariableDeclaration") {
@@ -29,31 +48,74 @@ const descendNodes = (node: Node, pos: number, path: string[]): string[] => {
         a.start !== null && a.end !== null && a.start <= pos && pos <= a.end
     );
     if (vd?.init) {
-      const moo = vd.init;
-      return descendNodes(moo, pos, path);
+      return descendNodes(vd.init, pos, path, "");
     }
   }
   ////
   else if (node.type === "ObjectExpression") {
     const props = node.properties;
-    const y = props.find(
+    const child = props.find(
       (n) =>
         n.start !== null && n.end !== null && n.start <= pos && pos <= n.end
     );
-    if (y?.type === "ObjectProperty") {
-      const newPath =
-        y.key.type === "Identifier"
-          ? [...path, y.key.name]
-          : y.key.type === "StringLiteral"
-          ? [...path, y.key.value]
-          : path;
-      return descendNodes(y.value, pos, newPath);
+    if (isObjectProperty(child)) {
+      const attribName = isStringLiteral(child.key) ? child.key.value : "";
+
+      const newPath = isArrayExpression(child.value)
+        ? path
+        : child.key.type === "Identifier"
+        ? [...path, child.key.name]
+        : child.key.type === "StringLiteral"
+        ? [...path, child.key.value]
+        : path;
+      return descendNodes(child.value, pos, newPath, attribName);
+      // }
+    }
+  }
+  ////
+  else if (node.type === "ArrayExpression") {
+    const nodes = node.elements;
+    const idx = nodes.findIndex(
+      (a) =>
+        a !== null &&
+        a.start !== null &&
+        a.end !== null &&
+        a.start <= pos &&
+        pos <= a.end
+    );
+    if (idx === -1) {
+      console.error("weird...could not find expected node");
+    } else {
+      const newPath = [...path, `${parentAttr}[${idx}]`];
+
+      const nextNode = nodes[idx];
+      if (isObjectExpression(nextNode)) {
+        return descendNodes(nextNode, pos, newPath, "");
+      }
     }
   } else {
     console.error(`Unknown type ${node.type}`);
   }
   return path;
 };
+
+const MODULE_PREFIX = "let __jasper__ = ";
+
+export const codePrefix = (isJson: boolean): string =>
+  isJson ? MODULE_PREFIX : "";
+
+/**
+ * Handle JSON document by assigning the JSON to a variable
+ * to make it a Module instead
+ */
+export const getAdjustedDoc = (
+  document: vscode.TextDocument,
+  isJson: boolean,
+  pos: number
+): [string, number] => [
+  codePrefix(isJson) + document.getText() + (isJson ? ";" : ""),
+  isJson ? pos + MODULE_PREFIX.length : pos,
+];
 
 /**
  * On hover, create an Abstract Syntax Tree and
@@ -69,17 +131,15 @@ export const handleHover = (
 ): vscode.ProviderResult<vscode.Hover> => {
   try {
     const pos = document.offsetAt(position);
-    /**
-     * Handle JSON document by assigning the JSON to a variable
-     * to make it a Module instead
-     */
-    const doc = parse((isJson ? "var _ = " : "") + document.getText(), {
-      sourceType: "module",
+
+    const [adjText, adjPos] = getAdjustedDoc(document, isJson, pos);
+
+    const doc = parse(adjText, {
       plugins: ["jsx"],
     });
-    const firstNode = getContainingNode(doc, pos);
+    const firstNode = getContainingNode(doc, adjPos);
     if (firstNode) {
-      const path = descendNodes(firstNode, pos, []);
+      const path = descendNodes(firstNode, adjPos, [], "");
       if (path.length > 0) {
         const contents = [
           new vscode.MarkdownString(`**Path**: ${path.join(".")}`),
