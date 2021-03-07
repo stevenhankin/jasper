@@ -22,7 +22,7 @@ Currently this extension won't recognise JSON that is sourced within functions e
 
 ## Release Notes
 
-### 0.0.1
+### 0.0.x
 
 Initial release of Jasper for processing simple JSON and Javascript files
 
