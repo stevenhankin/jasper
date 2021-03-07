@@ -55,55 +55,55 @@ const descendNodes = (node: Node, pos: number, path: string[]): string[] => {
   return path;
 };
 
+/**
+ * On hover, create an Abstract Syntax Tree and
+ * traverse the nodes down to the hover position
+ * keeping a list of the nodes
+ * @param document
+ * @param position
+ */
+export const handleHover = (
+  document: vscode.TextDocument,
+  position: vscode.Position,
+  isJson: boolean
+): vscode.ProviderResult<vscode.Hover> => {
+  try {
+    const pos = document.offsetAt(position);
+    /**
+     * Handle JSON document by assigning the JSON to a variable
+     * to make it a Module instead
+     */
+    const doc = parse((isJson ? "var _ = " : "") + document.getText(), {
+      sourceType: "module",
+      plugins: ["jsx"],
+    });
+    const firstNode = getContainingNode(doc, pos);
+    if (firstNode) {
+      const path = descendNodes(firstNode, pos, []);
+      if (path.length > 0) {
+        const contents = [
+          new vscode.MarkdownString(`**Path**: ${path.join(".")}`),
+        ];
+        return {
+          contents,
+        };
+      }
+      return undefined;
+    } else {
+      const contents = [new vscode.MarkdownString(`**Path**: none`)];
+      return { contents };
+    }
+  } catch (e) {
+    console.error("Failed", e);
+  }
+};
+
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
   console.log("Jasper extension now enabled");
-
-  /**
-   * On hover, create an Abstract Syntax Tree and
-   * traverse the nodes down to the hover position
-   * keeping a list of the nodes
-   * @param document
-   * @param position
-   */
-  const handleHover = (
-    document: vscode.TextDocument,
-    position: vscode.Position,
-    isJson: boolean
-  ) => {
-    try {
-      const pos = document.offsetAt(position);
-      /**
-       * Handle JSON document by assigning the JSON to a variable
-       * to make it a Module instead
-       */
-      const doc = parse((isJson ? "var _ = " : "") + document.getText(), {
-        sourceType: "module",
-        plugins: ["jsx"],
-      });
-      const firstNode = getContainingNode(doc, pos);
-      if (firstNode) {
-        const path = descendNodes(firstNode, pos, []);
-        if (path.length > 0) {
-          const contents = [
-            new vscode.MarkdownString(`**Path**: ${path.join(".")}`),
-          ];
-          return {
-            contents,
-          };
-        }
-        return undefined;
-      } else {
-        const contents = [new vscode.MarkdownString(`**Path**: none`)];
-        return { contents };
-      }
-    } catch (e) {
-      console.error("Failed", e);
-    }
-  };
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
