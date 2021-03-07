@@ -135,6 +135,7 @@ export const handleHover = (
     const [adjText, adjPos] = getAdjustedDoc(document, isJson, pos);
 
     const doc = parse(adjText, {
+      sourceType: "module",
       plugins: ["jsx"],
     });
     const firstNode = getContainingNode(doc, adjPos);
