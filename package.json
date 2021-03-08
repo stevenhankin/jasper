@@ -20,6 +20,7 @@
     "path",
     "parse"
   ],
+  "license": "MIT",
   "activationEvents": [
     "onCommand:jasper.start"
   ],
