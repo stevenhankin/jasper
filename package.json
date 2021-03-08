@@ -15,6 +15,11 @@
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "json",
+    "path",
+    "parse"
+  ],
   "activationEvents": [
     "onCommand:jasper.start"
   ],
