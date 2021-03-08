@@ -2,6 +2,8 @@
 
 This extension shows the path to the JSON attribute you are hovering over.
 
+[![Node.js CI](https://github.com/stevenhankin/jasper/actions/workflows/node.js.yml/badge.svg)](https://github.com/stevenhankin/jasper/actions/workflows/node.js.yml)
+
 ## Features
 
 Displays hover text path for JSON at the root level in modules (javascript) or in JSON files.
