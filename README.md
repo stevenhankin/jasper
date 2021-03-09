@@ -4,6 +4,8 @@ This extension shows the path to the JSON attribute you are hovering over.
 
 [![Node.js CI](https://github.com/stevenhankin/jasper/actions/workflows/node.js.yml/badge.svg)](https://github.com/stevenhankin/jasper/actions/workflows/node.js.yml)
 
+Useful if you want to know why a package is referenced in package-lock.json or to understand the path to an attribute within a deeply nested XHR JSON response.
+
 ## Features
 
 Displays hover text path for JSON at the root level in modules (javascript) or in JSON files.
@@ -21,12 +23,6 @@ This extension contributes the following settings:
 ## Known Issues
 
 Currently this extension won't recognise JSON that is sourced within functions etc (under development)
-
-## Release Notes
-
-### 0.0.x
-
-Initial release of Jasper for processing simple JSON and Javascript files
 
 ---
 

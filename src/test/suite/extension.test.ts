@@ -40,6 +40,11 @@ const SAMPLES: Sample = {
     }),
     isJson: true,
   },
+  functionExample: {
+    path: __dirname + "/sample4.json",
+    content: "const f = () => { const x = { sample: 1 }}",
+    isJson: false,
+  },
 };
 
 suite("Extension Test Suite", async () => {
@@ -150,5 +155,12 @@ suite("Extension Test Suite", async () => {
    */
   test("Test array json", (done) => {
     testHelper(done, "arrayExample", "anotherCode", ["level2", "anArray[2]"]);
+  });
+
+  /**
+   * Test hovering on JSON inside a function
+   */
+  test("Test javascript function", (done) => {
+    testHelper(done, "functionExample", "sample", ["x", "sample"]);
   });
 });

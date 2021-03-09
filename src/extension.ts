@@ -1,8 +1,7 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import {
   File,
   isArrayExpression,
+  isIdentifier,
   isObjectExpression,
   isObjectProperty,
   isStringLiteral,
@@ -13,14 +12,25 @@ import * as vscode from "vscode";
 import { parse } from "@babel/parser";
 
 /**
+ * Prefix used to turn a JSON into a module
+ * so that we only need to parse modules
+ */
+const MODULE_PREFIX = "let __jasper__ = ";
+
+/**
+ * Module prefix only returned when handling a JSON file
+ */
+export const codePrefix = (isJson: boolean): string =>
+  isJson ? MODULE_PREFIX : "";
+
+/**
  * Return the node that contains the hover position
  */
 const getContainingNode = (doc: File, pos: number) =>
-  doc.program.body.find((n: Node) => {
-    const test =
-      n.start !== null && n.end !== null && n.start <= pos && pos <= n.end;
-    return test;
-  });
+  doc.program.body.find(
+    (n: Node) =>
+      n.start !== null && n.end !== null && n.start <= pos && pos <= n.end
+  );
 
 /**
  * Descend the Abstract Syntax Tree
@@ -48,7 +58,8 @@ const descendNodes = (
         a.start !== null && a.end !== null && a.start <= pos && pos <= a.end
     );
     if (vd?.init) {
-      return descendNodes(vd.init, pos, path, "");
+      const name = isIdentifier(vd.id) ? vd.id.name : "";
+      return descendNodes(vd.init, pos, [name], name);
     }
   }
   ////
@@ -93,16 +104,36 @@ const descendNodes = (
         return descendNodes(nextNode, pos, newPath, "");
       }
     }
+  }
+  //// Ignore exports and drill into them
+  else if (node.type === "ExportDefaultDeclaration") {
+    return descendNodes(node.declaration, pos, [], "");
+  } //// Ignore functions and drill into them
+  else if (node.type === "FunctionDeclaration") {
+    return descendNodes(node.body, pos, [], "");
+  } //// Ignore arrow functions and drill into them
+  else if (node.type === "ArrowFunctionExpression") {
+    return descendNodes(node.body, pos, [], "");
+  } else if (node.type === "BlockStatement") {
+    const target = node.body.find(
+      (n) =>
+        n !== null &&
+        n.start !== null &&
+        n.end !== null &&
+        n.start <= pos &&
+        pos <= n.end
+    );
+    if (target !== undefined) {
+      return descendNodes(target, pos, path, "");
+    }
+  } else if (node.type === "StringLiteral" || node.type === "NumericLiteral") {
+    // End of the road :)
+    return path;
   } else {
-    console.error(`Unknown type ${node.type}`);
+    console.info(`Unknown type ${node.type}`);
   }
   return path;
 };
-
-const MODULE_PREFIX = "let __jasper__ = ";
-
-export const codePrefix = (isJson: boolean): string =>
-  isJson ? MODULE_PREFIX : "";
 
 /**
  * Handle JSON document by assigning the JSON to a variable
@@ -136,7 +167,7 @@ export const handleHover = (
 
     const doc = parse(adjText, {
       sourceType: "module",
-      plugins: ["jsx"],
+      plugins: ["jsx", "typescript"],
     });
     const firstNode = getContainingNode(doc, adjPos);
     if (firstNode) {
@@ -159,18 +190,17 @@ export const handleHover = (
   }
 };
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+// method is called when extension is activated
+// extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
+  // This line of code will only be executed once when extension is activated
   console.log("Jasper extension now enabled");
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with registerCommand
   // The commandId parameter must match the command field in package.json
   let disposable = vscode.commands.registerCommand("jasper.start", () => {
-    // The code you place here will be executed every time your command is executed
+    // The code here will be executed every time the command is executed
 
     vscode.languages.registerHoverProvider(["javascript", "typescript"], {
       provideHover(document, position, token) {
@@ -191,5 +221,5 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
-// this method is called when your extension is deactivated
+// called when extension is deactivated
 export function deactivate() {}
