@@ -160,6 +160,7 @@ export const handleHover = (
   position: vscode.Position,
   isJson: boolean
 ): vscode.ProviderResult<vscode.Hover> => {
+  console.log("Jasper running..");
   try {
     const pos = document.offsetAt(position);
 
@@ -194,31 +195,19 @@ export const handleHover = (
 // extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
   // This line of code will only be executed once when extension is activated
-  console.log("Jasper extension now enabled");
+  console.log("Activating Jasper extension");
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  let disposable = vscode.commands.registerCommand("jasper.start", () => {
-    // The code here will be executed every time the command is executed
-
-    vscode.languages.registerHoverProvider(["javascript", "typescript"], {
-      provideHover(document, position, token) {
-        return handleHover(document, position, false);
-      },
-    });
-
-    vscode.languages.registerHoverProvider("json", {
-      provideHover(document, position, token) {
-        return handleHover(document, position, true);
-      },
-    });
-
-    // Display a message box to the user
-    vscode.window.showInformationMessage("Jasper enabled");
+  vscode.languages.registerHoverProvider(["javascript", "typescript"], {
+    provideHover(document, position, token) {
+      return handleHover(document, position, false);
+    },
   });
 
-  context.subscriptions.push(disposable);
+  vscode.languages.registerHoverProvider("json", {
+    provideHover(document, position, token) {
+      return handleHover(document, position, true);
+    },
+  });
 }
 
 // called when extension is deactivated

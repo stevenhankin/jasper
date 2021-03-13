@@ -9,6 +9,8 @@ This extension shows the path to the JSON attribute you are hovering over.
 
 Useful if you want to know why a package is referenced in package-lock.json or to understand the path to an attribute within a deeply nested XHR JSON response.
 
+---
+
 ## Features
 
 Displays hover text path for JSON at the root level in modules (javascript) or in JSON files.
@@ -17,11 +19,11 @@ Displays hover text path for JSON at the root level in modules (javascript) or i
 
 ---
 
-## Extension Settings
+## Activation
 
-This extension contributes the following settings:
+Open any JSON or Javascript/Typescript file and hover over JSON
 
-- `jasper.start`: enable this extension
+The hover popup will display the path to the attribute that you hover over
 
 ---
 

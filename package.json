@@ -22,14 +22,19 @@
   ],
   "license": "MIT",
   "activationEvents": [
-    "onCommand:jasper.start"
+    "onLanguage:json",
+    "onLanguage:javascript",
+    "onLanguage:typescript"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
+    "languages": [
       {
-        "command": "jasper.start",
-        "title": "Jasper"
+        "id": "typescript",
+        "extensions": [
+          ".ts",
+          ".tsx"
+        ]
       }
     ]
   },
