@@ -23,10 +23,6 @@ This extension contributes the following settings:
 
 - `jasper.start`: enable this extension
 
-## Known Issues
-
-Currently this extension won't recognise JSON that is sourced within functions etc (under development)
-
 ---
 
 ## Attributions
