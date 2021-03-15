@@ -6,19 +6,21 @@ import { Hover } from "vscode";
 import { expect } from "chai";
 
 type Sample = {
-  [key: string]: { path: string; content: string; isJson: boolean };
+  id: string;
+  content: string;
+  isJson: boolean;
 };
 
-const SAMPLES: Sample = {
-  flatObject: {
-    path: __dirname + "/sample1.json",
+const SAMPLES: Sample[] = [
+  {
+    id: "flatObject",
     content: JSON.stringify({
       sample: "hello",
     }),
     isJson: true,
   },
-  threeLevels: {
-    path: __dirname + "/sample2.json",
+  {
+    id: "threeLevels",
     content: JSON.stringify({
       sample: "hello",
       level2: {
@@ -30,8 +32,8 @@ const SAMPLES: Sample = {
     }),
     isJson: true,
   },
-  arrayExample: {
-    path: __dirname + "/sample3.json",
+  {
+    id: "arrayExample",
     content: JSON.stringify({
       sample: "hello",
       level2: {
@@ -40,22 +42,34 @@ const SAMPLES: Sample = {
     }),
     isJson: true,
   },
-  functionExample: {
-    path: __dirname + "/sample4.json",
+  {
+    id: "functionExample",
     content: "const f = () => { const x = { sample: 1 }}",
     isJson: false,
   },
-};
+  {
+    id: "functionExampleWithExport",
+    content: "export const f = () => { const abc = { test: 123 }}",
+    isJson: false,
+  },
+];
+
+const getPath = (sample: Sample) => __dirname + "/" + sample.id;
 
 suite("Extension Test Suite", async () => {
   before(() => {
     /**
      * Create files for all the samples
      */
-    Object.keys(SAMPLES).forEach((key) => {
-      const sample = SAMPLES[key];
-      writeFileSync(sample.path, sample.content);
-      console.log("Written file");
+    SAMPLES.forEach((sample) => {
+      try {
+        const fileName = getPath(sample);
+        console.log(`Writing to ${fileName}..`);
+        writeFileSync(fileName, sample.content);
+        console.log("Written file");
+      } catch (e) {
+        console.error(e);
+      }
     });
   });
 
@@ -102,9 +116,12 @@ suite("Extension Test Suite", async () => {
     textToHover: string,
     matches: string[]
   ) => {
-    const sample = SAMPLES[sampleName];
+    const sample = SAMPLES.find((s) => s.id === sampleName);
+    if (sample === undefined) {
+      throw new Error(`Sample ${sampleName} does not exist`);
+    }
     vscode.window
-      .showTextDocument(vscode.Uri.file(sample.path))
+      .showTextDocument(vscode.Uri.file(getPath(sample)))
       .then((onfulfilled) => {
         const docText = onfulfilled.document.getText();
         const hoverOnPos = getHoverPosition(docText, textToHover);
@@ -113,6 +130,7 @@ suite("Extension Test Suite", async () => {
           new vscode.Position(0, hoverOnPos),
           sample.isJson
         );
+        expect(hoverResult).to.not.be.undefined;
         try {
           if (isHover(hoverResult)) {
             vscode.Hover;
@@ -121,6 +139,7 @@ suite("Extension Test Suite", async () => {
             expect(contents).to.have.length(1);
             const path = (contents[0] as vscode.MarkdownString).value;
             matches.forEach((m) => {
+              console.log(`Checking ${path} contains ${m}`);
               expect(path).contains(m);
             });
           }
@@ -153,14 +172,15 @@ suite("Extension Test Suite", async () => {
    * Test on an array object
    * to hover on the 3rd element
    */
-  test("Test array json", (done) => {
+  test("Test array json within function", (done) => {
     testHelper(done, "arrayExample", "anotherCode", ["level2", "anArray[2]"]);
   });
 
   /**
    * Test hovering on JSON inside a function
+   * where the const is exported
    */
-  test("Test javascript function", (done) => {
-    testHelper(done, "functionExample", "sample", ["x", "sample"]);
+  test("Test javascript function with exported const", (done) => {
+    testHelper(done, "functionExampleWithExport", "123", ["abc", "test"]);
   });
 });

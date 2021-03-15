@@ -62,6 +62,7 @@ const descendNodes = (
       return descendNodes(vd.init, pos, [name], name);
     }
   }
+
   ////
   else if (node.type === "ObjectExpression") {
     const props = node.properties;
@@ -107,6 +108,9 @@ const descendNodes = (
   }
   //// Ignore exports and drill into them
   else if (node.type === "ExportDefaultDeclaration") {
+    return descendNodes(node.declaration, pos, [], "");
+  } //// Ignore exports and drill into them
+  else if (node.type === "ExportNamedDeclaration" && !!node.declaration) {
     return descendNodes(node.declaration, pos, [], "");
   } //// Ignore functions and drill into them
   else if (node.type === "FunctionDeclaration") {
