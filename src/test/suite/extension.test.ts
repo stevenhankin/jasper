@@ -7,21 +7,21 @@ import { expect } from "chai";
 
 type Sample = {
   id: string;
-  content: string;
+  content: string | {} | [];
   isJson: boolean;
 };
 
 const SAMPLES: Sample[] = [
   {
     id: "flatObject",
-    content: JSON.stringify({
+    content: {
       sample: "hello",
-    }),
+    },
     isJson: true,
   },
   {
     id: "threeLevels",
-    content: JSON.stringify({
+    content: {
       sample: "hello",
       level2: {
         description: "nested attrib",
@@ -29,17 +29,17 @@ const SAMPLES: Sample[] = [
           targetAttrib: "hoverOnThis",
         },
       },
-    }),
+    },
     isJson: true,
   },
   {
     id: "arrayExample",
-    content: JSON.stringify({
+    content: {
       sample: "hello",
       level2: {
         anArray: [{ thisCode: 0 }, { thatCode: 1 }, { anotherCode: 2 }],
       },
-    }),
+    },
     isJson: true,
   },
   {
@@ -51,6 +51,14 @@ const SAMPLES: Sample[] = [
     id: "functionExampleWithExport",
     content: "export const f = () => { const abc = { test: 123 }}",
     isJson: false,
+  },
+  {
+    id: "attribMappedToArray",
+    content: {
+      sample: "hello",
+      anArray: [{ thisCode: 0 }, { thatCode: 1 }, { anotherCode: 2 }],
+    },
+    isJson: true,
   },
 ];
 
@@ -65,7 +73,11 @@ suite("Extension Test Suite", async () => {
       try {
         const fileName = getPath(sample);
         console.log(`Writing to ${fileName}..`);
-        writeFileSync(fileName, sample.content);
+        const contentStr =
+          typeof sample.content === "string"
+            ? sample.content
+            : JSON.stringify(sample.content);
+        writeFileSync(fileName, contentStr);
         console.log("Written file");
       } catch (e) {
         console.error(e);
@@ -182,5 +194,12 @@ suite("Extension Test Suite", async () => {
    */
   test("Test javascript function with exported const", (done) => {
     testHelper(done, "functionExampleWithExport", "123", ["abc", "test"]);
+  });
+
+  /**
+   * Test hovering on an array within an object
+   */
+  test("Test hovering on an array within an object", (done) => {
+    testHelper(done, "attribMappedToArray", "thatCode", ["anArray[1]"]);
   });
 });
