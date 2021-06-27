@@ -192,6 +192,7 @@ export const handleHover = (
     }
   } catch (e) {
     console.error("Failed", e);
+    return undefined;
   }
 };
 
