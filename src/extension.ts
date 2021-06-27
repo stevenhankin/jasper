@@ -16,7 +16,7 @@ import { window } from "vscode";
  * Prefix used to turn a JSON into a module
  * so that we only need to parse modules
  */
-const PREFIX_VARIABLE = "__jasper__";
+const PREFIX_VARIABLE = "obj";
 const MODULE_PREFIX = `let ${PREFIX_VARIABLE} = `;
 
 let path: string;
@@ -48,12 +48,7 @@ const getContainingNode = (doc: File, pos: number) =>
  * @param parentAttr - Attribute name of parent
  * @returns string array of JSON path to hover text
  */
-const descendNodes = (
-  node: Node,
-  pos: number,
-  path: string[],
-  parentAttr: string
-): string[] => {
+const descendNodes = (node: Node, pos: number, nodePath: Node[]): Node[] => {
   console.log("descendNodes", node.type);
   ////
   if (node.type === "VariableDeclaration") {
@@ -62,13 +57,9 @@ const descendNodes = (
       (a) =>
         a.start !== null && a.end !== null && a.start <= pos && pos <= a.end
     );
-    if (vd?.init) {
-      const name = isIdentifier(vd.id) ? vd.id.name : "";
-      if (name === PREFIX_VARIABLE) {
-        // The top-level will be a placeholder that is discarded
-        return descendNodes(vd.init, pos, [], name);
-      }
-      return descendNodes(vd.init, pos, [name], name);
+    if (vd?.init && isIdentifier(vd.id)) {
+      const identifier = vd.id;
+      return descendNodes(vd.init, pos, [...nodePath, identifier]);
     }
   }
 
@@ -82,16 +73,18 @@ const descendNodes = (
     if (isObjectProperty(child)) {
       const attribName = isStringLiteral(child.key) ? child.key.value : "";
       if (child.key.end && pos <= child.key.end) {
-        return [...path, attribName];
+        // return [...path, attribName];
+        return [...nodePath, node];
       }
-      const newPath = isArrayExpression(child.value)
-        ? path
-        : child.key.type === "Identifier"
-        ? [...path, child.key.name]
-        : child.key.type === "StringLiteral"
-        ? [...path, child.key.value]
-        : path;
-      return descendNodes(child.value, pos, newPath, attribName);
+      // const newPath = isArrayExpression(child.value)
+      //   ? path
+      //   : child.key.type === "Identifier"
+      //   ? [...path, child.key.name]
+      //   : child.key.type === "StringLiteral"
+      //   ? [...path, child.key.value]
+      //   : path;
+
+      return descendNodes(child.value, pos, [...nodePath, node]);
       // }
     }
   }
@@ -109,25 +102,25 @@ const descendNodes = (
     if (idx === -1) {
       console.error("weird...could not find expected node");
     } else {
-      const newPath = [...path, `${parentAttr}[${idx}]`];
+      // const newPath = [...path, `${parentAttr}[${idx}]`];
       const nextNode = nodes[idx];
       if (nextNode) {
-        return descendNodes(nextNode, pos, newPath, "");
+        return descendNodes(nextNode, pos, [...nodePath, node]);
       }
     }
   }
   //// Ignore exports and drill into them
   else if (node.type === "ExportDefaultDeclaration") {
-    return descendNodes(node.declaration, pos, [], "");
+    return descendNodes(node.declaration, pos, []);
   } //// Ignore exports and drill into them
   else if (node.type === "ExportNamedDeclaration" && !!node.declaration) {
-    return descendNodes(node.declaration, pos, [], "");
+    return descendNodes(node.declaration, pos, []);
   } //// Ignore functions and drill into them
   else if (node.type === "FunctionDeclaration") {
-    return descendNodes(node.body, pos, [], "");
+    return descendNodes(node.body, pos, []);
   } //// Ignore arrow functions and drill into them
   else if (node.type === "ArrowFunctionExpression") {
-    return descendNodes(node.body, pos, [], "");
+    return descendNodes(node.body, pos, []);
   } else if (node.type === "BlockStatement") {
     const target = node.body.find(
       (n) =>
@@ -138,15 +131,15 @@ const descendNodes = (
         pos <= n.end
     );
     if (target !== undefined) {
-      return descendNodes(target, pos, path, "");
+      return descendNodes(target, pos, [...nodePath, node]);
     }
   } else if (node.type === "StringLiteral" || node.type === "NumericLiteral") {
     // End of the road :)
-    return path;
+    return nodePath;
   } else {
     console.info(`Unknown type ${node.type}`);
   }
-  return path;
+  return nodePath;
 };
 
 /**
@@ -187,8 +180,45 @@ export const handleHover = (
     });
     const firstNode = getContainingNode(doc, adjPos);
     if (firstNode) {
-      const pathArray = descendNodes(firstNode, adjPos, [], "");
-      path = pathArray.join(".");
+      const pathArray = descendNodes(firstNode, adjPos, []);
+      path = pathArray
+        .map((node) => {
+          if (node.type === "Identifier") {
+            return node.name;
+          }
+          if (node.type === "ArrayExpression") {
+            const idx = node.elements?.findIndex(
+              (e) =>
+                e !== null &&
+                e.start !== null &&
+                e.end !== null &&
+                e.start <= pos &&
+                pos <= e.end
+            );
+            return `[${idx}]`;
+          }
+          if (node.type === "ObjectExpression") {
+            const idx = node.properties.findIndex(
+              (e) =>
+                e !== null &&
+                e.start !== null &&
+                e.end !== null &&
+                e.start <= pos &&
+                pos <= e.end
+            );
+            const prop = node.properties[idx];
+            if (
+              prop.type === "ObjectProperty" &&
+              prop.key.type === "StringLiteral"
+            ) {
+              return prop.key.value;
+            }
+            return `_${prop.type}_`;
+          }
+          return `_${node.type}_`;
+        })
+        .join(".");
+      // path = pathArray.join(".");
       if (path.length > 0) {
         const contents = [
           new vscode.MarkdownString(
