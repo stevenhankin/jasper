@@ -15,7 +15,8 @@ import { parse } from "@babel/parser";
  * Prefix used to turn a JSON into a module
  * so that we only need to parse modules
  */
-const MODULE_PREFIX = "let __jasper__ = ";
+const PREFIX_VARIABLE = "__jasper__";
+const MODULE_PREFIX = `let ${PREFIX_VARIABLE} = `;
 
 /**
  * Module prefix only returned when handling a JSON file
@@ -59,6 +60,10 @@ const descendNodes = (
     );
     if (vd?.init) {
       const name = isIdentifier(vd.id) ? vd.id.name : "";
+      if (name === PREFIX_VARIABLE) {
+        // The top-level will be a placeholder that is discarded
+        return descendNodes(vd.init, pos, [], name);
+      }
       return descendNodes(vd.init, pos, [name], name);
     }
   }
@@ -72,7 +77,9 @@ const descendNodes = (
     );
     if (isObjectProperty(child)) {
       const attribName = isStringLiteral(child.key) ? child.key.value : "";
-
+      if (child.key.end && pos <= child.key.end) {
+        return [...path, attribName];
+      }
       const newPath = isArrayExpression(child.value)
         ? path
         : child.key.type === "Identifier"
@@ -99,9 +106,8 @@ const descendNodes = (
       console.error("weird...could not find expected node");
     } else {
       const newPath = [...path, `${parentAttr}[${idx}]`];
-
       const nextNode = nodes[idx];
-      if (isObjectExpression(nextNode)) {
+      if (nextNode) {
         return descendNodes(nextNode, pos, newPath, "");
       }
     }
