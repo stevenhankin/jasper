@@ -2,7 +2,7 @@
   "name": "jasper",
   "displayName": "Jasper",
   "description": "View the path to a JSON attribute by hovering over it",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "publisher": "SteveHankin",
   "engines": {
     "vscode": "^1.53.0"
