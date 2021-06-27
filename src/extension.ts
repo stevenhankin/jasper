@@ -10,6 +10,7 @@ import {
 } from "@babel/types";
 import * as vscode from "vscode";
 import { parse } from "@babel/parser";
+import { window } from "vscode";
 
 /**
  * Prefix used to turn a JSON into a module
@@ -17,6 +18,9 @@ import { parse } from "@babel/parser";
  */
 const PREFIX_VARIABLE = "__jasper__";
 const MODULE_PREFIX = `let ${PREFIX_VARIABLE} = `;
+
+let path: string;
+let documentPath: string;
 
 /**
  * Module prefix only returned when handling a JSON file
@@ -173,6 +177,7 @@ export const handleHover = (
   console.log("Jasper running..");
   try {
     const pos = document.offsetAt(position);
+    documentPath = document.fileName;
 
     const [adjText, adjPos] = getAdjustedDoc(document, isJson, pos);
 
@@ -182,11 +187,15 @@ export const handleHover = (
     });
     const firstNode = getContainingNode(doc, adjPos);
     if (firstNode) {
-      const path = descendNodes(firstNode, adjPos, [], "");
+      const pathArray = descendNodes(firstNode, adjPos, [], "");
+      path = pathArray.join(".");
       if (path.length > 0) {
         const contents = [
-          new vscode.MarkdownString(`**Path**: ${path.join(".")}`),
+          new vscode.MarkdownString(
+            `**Path**: ${path}\n\n[Copy To Clipboard](command:jasper.copyPathToClipboard)`
+          ),
         ];
+        contents[0].isTrusted = true;
         return {
           contents,
         };
@@ -202,11 +211,33 @@ export const handleHover = (
   }
 };
 
+/**
+ * Setup a command to copy the path to the JSON to the clipboard
+ *
+ * @param context
+ */
+const copyToPath = (context: vscode.ExtensionContext) => {
+  const command = "jasper.copyPathToClipboard";
+
+  const commandHandler = (name: string = "world") => {
+    // console.log(`Hello ${name}!!!`);
+    vscode.env.clipboard.writeText(`${documentPath}:${path}`).then(() => {
+      window.showInformationMessage("Copied to clipboard");
+    });
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(command, commandHandler)
+  );
+};
+
 // method is called when extension is activated
 // extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
   // This line of code will only be executed once when extension is activated
   console.log("Activating Jasper extension");
+
+  copyToPath(context);
 
   vscode.languages.registerHoverProvider(["javascript", "typescript"], {
     provideHover(document, position, token) {
