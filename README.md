@@ -15,7 +15,7 @@ Useful if you want to know why a package is referenced in package-lock.json or t
 
 Displays hover text path for JSON at the root level in modules (javascript) or in JSON files.
 
-![Usage](https://raw.githubusercontent.com/stevenhankin/jasper/main/images/jasper.gif)
+![Usage](https://media.giphy.com/media/32SSUjnzjZ60skDWY9/giphy.gif)
 
 ---
 
