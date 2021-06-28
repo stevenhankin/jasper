@@ -181,36 +181,38 @@ export const handleHover = (
     const firstNode = getContainingNode(doc, adjPos);
     if (firstNode) {
       const pathArray = descendNodes(firstNode, adjPos, []);
-      path = pathArray
-        .map((node) => {
-          if (node.type === "Identifier") {
-            return node.name;
+      /**
+       * Pretty Print the node path
+       */
+      path = pathArray.reduce((acc, node) => {
+        const prefx = acc.length > 0 ? acc + "." : "";
+        if (node.type === "Identifier") {
+          return prefx + node.name;
+        }
+        if (node.type === "ArrayExpression") {
+          // idx is extra attribute used to track the offset
+          return acc + `[${node.idx}]`;
+        }
+        if (node.type === "ObjectExpression") {
+          const idx = node.properties.findIndex(
+            (e) =>
+              e !== null &&
+              e.start !== null &&
+              e.end !== null &&
+              e.start <= pos &&
+              pos <= e.end
+          );
+          const prop = node.properties[idx];
+          if (
+            prop.type === "ObjectProperty" &&
+            prop.key.type === "StringLiteral"
+          ) {
+            return prefx + prop.key.value;
           }
-          if (node.type === "ArrayExpression") {
-            // idx is extra attribute used to track the offset
-            return `[${node.idx}]`;
-          }
-          if (node.type === "ObjectExpression") {
-            const idx = node.properties.findIndex(
-              (e) =>
-                e !== null &&
-                e.start !== null &&
-                e.end !== null &&
-                e.start <= pos &&
-                pos <= e.end
-            );
-            const prop = node.properties[idx];
-            if (
-              prop.type === "ObjectProperty" &&
-              prop.key.type === "StringLiteral"
-            ) {
-              return prop.key.value;
-            }
-            return `_${prop.type}_`;
-          }
-          return `_${node.type}_`;
-        })
-        .join(".");
+          return prefx + `_${prop.type}_`;
+        }
+        return prefx + `_${node.type}_`;
+      }, "");
 
       if (path.length > 0) {
         const contents = [
@@ -243,7 +245,6 @@ const copyToPath = (context: vscode.ExtensionContext) => {
   const command = "jasper.copyPathToClipboard";
 
   const commandHandler = (name: string = "world") => {
-    // console.log(`Hello ${name}!!!`);
     vscode.env.clipboard.writeText(`${documentPath}:${path}`).then(() => {
       window.showInformationMessage("Copied to clipboard");
     });
