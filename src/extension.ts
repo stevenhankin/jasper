@@ -38,6 +38,13 @@ const getContainingNode = (doc: File, pos: number) =>
   );
 
 /**
+ * Extends node to include an index for Arrays
+ */
+type NodeX = Node & {
+  idx?: number;
+};
+
+/**
  * Descend the Abstract Syntax Tree
  * and add the object path at each level
  * to the string array (which is returned)
@@ -48,7 +55,7 @@ const getContainingNode = (doc: File, pos: number) =>
  * @param parentAttr - Attribute name of parent
  * @returns string array of JSON path to hover text
  */
-const descendNodes = (node: Node, pos: number, nodePath: Node[]): Node[] => {
+const descendNodes = (node: NodeX, pos: number, nodePath: NodeX[]): NodeX[] => {
   console.log("descendNodes", node.type);
   ////
   if (node.type === "VariableDeclaration") {
@@ -72,20 +79,14 @@ const descendNodes = (node: Node, pos: number, nodePath: Node[]): Node[] => {
     );
     if (isObjectProperty(child)) {
       const attribName = isStringLiteral(child.key) ? child.key.value : "";
-      if (child.key.end && pos <= child.key.end) {
-        // return [...path, attribName];
+      if (!child.value) {
         return [...nodePath, node];
       }
-      // const newPath = isArrayExpression(child.value)
-      //   ? path
-      //   : child.key.type === "Identifier"
-      //   ? [...path, child.key.name]
-      //   : child.key.type === "StringLiteral"
-      //   ? [...path, child.key.value]
-      //   : path;
-
-      return descendNodes(child.value, pos, [...nodePath, node]);
-      // }
+      const { key, value } = child;
+      if (key.start && key.end && key.start <= pos && pos <= key.end) {
+        return descendNodes(key, pos, [...nodePath, node]);
+      }
+      return descendNodes(value, pos, [...nodePath, node]);
     }
   }
   ////
@@ -102,10 +103,9 @@ const descendNodes = (node: Node, pos: number, nodePath: Node[]): Node[] => {
     if (idx === -1) {
       console.error("weird...could not find expected node");
     } else {
-      // const newPath = [...path, `${parentAttr}[${idx}]`];
       const nextNode = nodes[idx];
       if (nextNode) {
-        return descendNodes(nextNode, pos, [...nodePath, node]);
+        return descendNodes(nextNode, pos, [...nodePath, { ...node, idx }]);
       }
     }
   }
@@ -187,15 +187,8 @@ export const handleHover = (
             return node.name;
           }
           if (node.type === "ArrayExpression") {
-            const idx = node.elements?.findIndex(
-              (e) =>
-                e !== null &&
-                e.start !== null &&
-                e.end !== null &&
-                e.start <= pos &&
-                pos <= e.end
-            );
-            return `[${idx}]`;
+            // idx is extra attribute used to track the offset
+            return `[${node.idx}]`;
           }
           if (node.type === "ObjectExpression") {
             const idx = node.properties.findIndex(
@@ -218,7 +211,7 @@ export const handleHover = (
           return `_${node.type}_`;
         })
         .join(".");
-      // path = pathArray.join(".");
+
       if (path.length > 0) {
         const contents = [
           new vscode.MarkdownString(
