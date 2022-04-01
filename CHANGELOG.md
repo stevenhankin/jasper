@@ -2,6 +2,10 @@
 
 All notable changes to the "Jasper" extension will be documented in this file.
 
+## [1.3.2]
+
+- Upgrade Mocha (fix audit)
+
 ## [1.3.0]
 
 - Copy To Path command on Helper
