@@ -1,4 +1,4 @@
-# JASPER
+# JASPER <img src="images/bee.png" width="24">
 
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/stevenhankin/jasper)
 ![GitHub last commit](https://img.shields.io/github/last-commit/stevenhankin/jasper)
