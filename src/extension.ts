@@ -1,15 +1,22 @@
+import { parse } from "@babel/parser";
 import {
   File,
   isArrayExpression,
+  isArrowFunctionExpression,
+  isBlockStatement,
+  isExportDefaultDeclaration,
+  isExportNamedDeclaration,
+  isFunctionDeclaration,
   isIdentifier,
+  isNumericLiteral,
   isObjectExpression,
   isObjectProperty,
   isStringLiteral,
+  isVariableDeclaration,
   Node,
   VariableDeclarator,
 } from "@babel/types";
 import * as vscode from "vscode";
-import { parse } from "@babel/parser";
 import { window } from "vscode";
 
 /**
@@ -21,6 +28,7 @@ const MODULE_PREFIX = `let ${PREFIX_VARIABLE} = `;
 
 let path: string;
 let documentPath: string;
+let moo: string[] = [];
 
 /**
  * Module prefix only returned when handling a JSON file
@@ -49,16 +57,18 @@ type NodeX = Node & {
  * and add the object path at each level
  * to the string array (which is returned)
  *
- * @param node
- * @param pos
- * @param path
- * @param parentAttr - Attribute name of parent
- * @returns string array of JSON path to hover text
+ * @param node Current node
+ * @param pos Document offset for hover position
+ * @param nodePath Array of nodes to hovered path
+ * @returns Array of Nodes for the hovered path
  */
 const descendNodes = (node: NodeX, pos: number, nodePath: NodeX[]): NodeX[] => {
+  let nextNode: NodeX | undefined;
+  let newNodePath: NodeX[] | undefined;
+
   console.log("descendNodes", node.type);
   ////
-  if (node.type === "VariableDeclaration") {
+  if (isVariableDeclaration(node)) {
     const x: VariableDeclarator[] = node.declarations;
     const vd = x.find(
       (a) =>
@@ -66,12 +76,14 @@ const descendNodes = (node: NodeX, pos: number, nodePath: NodeX[]): NodeX[] => {
     );
     if (vd?.init && isIdentifier(vd.id)) {
       const identifier = vd.id;
+      nextNode = vd.init;
+      newNodePath = [...nodePath, identifier];
       return descendNodes(vd.init, pos, [...nodePath, identifier]);
     }
   }
 
   ////
-  else if (node.type === "ObjectExpression") {
+  if (isObjectExpression(node)) {
     const props = node.properties;
     const child = props.find(
       (n) =>
@@ -90,7 +102,7 @@ const descendNodes = (node: NodeX, pos: number, nodePath: NodeX[]): NodeX[] => {
     }
   }
   ////
-  else if (node.type === "ArrayExpression") {
+  else if (isArrayExpression(node)) {
     const nodes = node.elements;
     const idx = nodes.findIndex(
       (a) =>
@@ -108,20 +120,19 @@ const descendNodes = (node: NodeX, pos: number, nodePath: NodeX[]): NodeX[] => {
         return descendNodes(nextNode, pos, [...nodePath, { ...node, idx }]);
       }
     }
-  }
-  //// Ignore exports and drill into them
-  else if (node.type === "ExportDefaultDeclaration") {
+  } else if (isExportDefaultDeclaration(node)) {
+    //// Ignore exports and drill into them
     return descendNodes(node.declaration, pos, []);
-  } //// Ignore exports and drill into them
-  else if (node.type === "ExportNamedDeclaration" && !!node.declaration) {
+  } else if (isExportNamedDeclaration(node) && node.declaration) {
+    //// Ignore exports and drill into them
     return descendNodes(node.declaration, pos, []);
-  } //// Ignore functions and drill into them
-  else if (node.type === "FunctionDeclaration") {
+  } else if (isFunctionDeclaration(node)) {
+    //// Ignore functions and drill into them
     return descendNodes(node.body, pos, []);
-  } //// Ignore arrow functions and drill into them
-  else if (node.type === "ArrowFunctionExpression") {
+  } else if (isArrowFunctionExpression(node)) {
+    //// Ignore arrow functions and drill into them
     return descendNodes(node.body, pos, []);
-  } else if (node.type === "BlockStatement") {
+  } else if (isBlockStatement(node)) {
     const target = node.body.find(
       (n) =>
         n !== null &&
@@ -131,14 +142,19 @@ const descendNodes = (node: NodeX, pos: number, nodePath: NodeX[]): NodeX[] => {
         pos <= n.end
     );
     if (target !== undefined) {
-      return descendNodes(target, pos, [...nodePath, node]);
+      return descendNodes(target, pos, []); //[...nodePath, node]);
     }
-  } else if (node.type === "StringLiteral" || node.type === "NumericLiteral") {
+  } else if (isStringLiteral(node) || isNumericLiteral(node)) {
     // End of the road :)
     return nodePath;
   } else {
     console.info(`Unknown type ${node.type}`);
   }
+
+  // if (nextNode && newNodePath) {
+  //   return descendNodes(nextNode, pos, newNodePath);
+  // }
+
   return nodePath;
 };
 
@@ -154,6 +170,44 @@ export const getAdjustedDoc = (
   codePrefix(isJson) + document.getText() + (isJson ? ";" : ""),
   isJson ? pos + MODULE_PREFIX.length : pos,
 ];
+
+/**
+ * For a given document offset, return a prettified string of the JSON path
+ */
+const prettyPrintPath = (pathArray: NodeX[], pos: number) =>
+  pathArray.reduce((acc, node) => {
+    const prefx = acc.length > 0 ? acc + "." : "";
+    if (isIdentifier(node)) {
+      return prefx + node.name;
+    }
+    if (isArrayExpression(node)) {
+      // idx is extra attribute used to track the offset
+      return acc + `[${node.idx}]`;
+    }
+    if (isObjectExpression(node)) {
+      const prop = node.properties.find(
+        (e) =>
+          e !== null &&
+          e.start !== null &&
+          e.end !== null &&
+          e.start <= pos &&
+          pos <= e.end
+      );
+      if (!prop) {
+        return acc;
+      }
+      if (isObjectProperty(prop)) {
+        if (isStringLiteral(prop.key)) {
+          return prefx + prop.key.value;
+        }
+        if (isIdentifier(prop.key)) {
+          return prefx + `${prop.key.name}`;
+        }
+      }
+      return prefx + `_${prop.type}_`;
+    }
+    return prefx + `_${node.type}_`;
+  }, "");
 
 /**
  * On hover, create an Abstract Syntax Tree and
@@ -181,38 +235,8 @@ export const handleHover = (
     const firstNode = getContainingNode(doc, adjPos);
     if (firstNode) {
       const pathArray = descendNodes(firstNode, adjPos, []);
-      /**
-       * Pretty Print the node path
-       */
-      path = pathArray.reduce((acc, node) => {
-        const prefx = acc.length > 0 ? acc + "." : "";
-        if (node.type === "Identifier") {
-          return prefx + node.name;
-        }
-        if (node.type === "ArrayExpression") {
-          // idx is extra attribute used to track the offset
-          return acc + `[${node.idx}]`;
-        }
-        if (node.type === "ObjectExpression") {
-          const idx = node.properties.findIndex(
-            (e) =>
-              e !== null &&
-              e.start !== null &&
-              e.end !== null &&
-              e.start <= pos &&
-              pos <= e.end
-          );
-          const prop = node.properties[idx];
-          if (
-            prop.type === "ObjectProperty" &&
-            prop.key.type === "StringLiteral"
-          ) {
-            return prefx + prop.key.value;
-          }
-          return prefx + `_${prop.type}_`;
-        }
-        return prefx + `_${node.type}_`;
-      }, "");
+
+      path = prettyPrintPath(pathArray, adjPos);
 
       if (path.length > 0) {
         const contents = [

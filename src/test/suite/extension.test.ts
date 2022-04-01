@@ -62,7 +62,7 @@ const SAMPLES: Sample[] = [
   },
 ];
 
-const getPath = (sample: Sample) => __dirname + "/" + sample.id;
+const getPath = (sample: Sample) => __dirname + "/" + sample.id + ".js";
 
 suite("Extension Test Suite", async () => {
   before(() => {
@@ -142,8 +142,8 @@ suite("Extension Test Suite", async () => {
           new vscode.Position(0, hoverOnPos),
           sample.isJson
         );
-        expect(hoverResult).to.not.be.undefined;
         try {
+          expect(hoverResult).to.not.be.undefined;
           if (isHover(hoverResult)) {
             vscode.Hover;
             const { contents } = hoverResult;
