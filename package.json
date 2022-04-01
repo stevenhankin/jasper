@@ -18,7 +18,8 @@
   "keywords": [
     "json",
     "path",
-    "parse"
+    "parse",
+    "vscode extension"
   ],
   "license": "MIT",
   "activationEvents": [
